@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Tester</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: #0f0f0f;
+        color: #e0e0e0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #7f00ff;
+        flex-shrink: 0;
+      }
+      .conn-row {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      input,
+      textarea {
+        background: #252525;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        border-radius: 6px;
+        padding: 7px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      input:focus,
+      textarea:focus {
+        border-color: #7f00ff;
+      }
+
+      button {
+        padding: 7px 14px;
+        border-radius: 6px;
+        border: none;
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: opacity 0.15s;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .btn-primary {
+        background: #7f00ff;
+        color: #fff;
+      }
+      .btn-danger {
+        background: #c0392b;
+        color: #fff;
+      }
+      .btn-secondary {
+        background: #333;
+        color: #ccc;
+      }
+      .btn-sm {
+        padding: 5px 10px;
+        font-size: 12px;
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+        background: #555;
+      }
+      .status-dot.online {
+        background: #27ae60;
+      }
+
+      .main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 260px;
+        background: #141414;
+        border-right: 1px solid #2a2a2a;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+      .sidebar-section {
+        padding: 12px;
+        border-bottom: 1px solid #2a2a2a;
+      }
+      .sidebar-section h3 {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      .sidebar-section input {
+        width: 100%;
+        margin-bottom: 6px;
+      }
+      .rest-btns {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .user-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+      }
+      .user-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 8px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.1s;
+      }
+      .user-item:hover {
+        background: #1f1f1f;
+      }
+      .user-item.active {
+        background: #2a1a4a;
+      }
+      .user-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #7f00ff33;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: #a66aff;
+        flex-shrink: 0;
+      }
+      .user-name {
+        font-weight: 500;
+      }
+      .user-last {
+        font-size: 11px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 130px;
+      }
+
+      /* Chat */
+      .chat-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .chat-header {
+        padding: 12px 16px;
+        background: #1a1a1a;
+        border-bottom: 1px solid #2a2a2a;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 52px;
+      }
+      .chat-title {
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .typing-indicator {
+        font-size: 12px;
+        color: #a66aff;
+        font-style: italic;
+      }
+      .messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .msg {
+        display: flex;
+        flex-direction: column;
+        max-width: 70%;
+      }
+      .msg.mine {
+        align-self: flex-end;
+        align-items: flex-end;
+      }
+      .msg.theirs {
+        align-self: flex-start;
+        align-items: flex-start;
+      }
+      .msg-sender {
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 3px;
+      }
+      .msg-bubble {
+        padding: 9px 13px;
+        border-radius: 14px;
+        font-size: 13px;
+        line-height: 1.45;
+        word-break: break-word;
+      }
+      .msg.mine .msg-bubble {
+        background: #7f00ff;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+      }
+      .msg.theirs .msg-bubble {
+        background: #252525;
+        color: #e0e0e0;
+        border-bottom-left-radius: 4px;
+      }
+      .msg-meta {
+        font-size: 10px;
+        color: #555;
+        margin-top: 3px;
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+      .msg-status {
+        color: #a66aff;
+      }
+
+      .input-area {
+        padding: 12px 16px;
+        background: #1a1a1a;
+        border-top: 1px solid #2a2a2a;
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      .input-area textarea {
+        flex: 1;
+        resize: none;
+        min-height: 38px;
+        max-height: 100px;
+        line-height: 1.4;
+      }
+
+      /* Log */
+      .log-panel {
+        width: 280px;
+        background: #0d0d0d;
+        border-left: 1px solid #2a2a2a;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+      }
+      .log-header {
+        padding: 10px 12px;
+        border-bottom: 1px solid #2a2a2a;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #666;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .log-entries {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+        font-size: 11px;
+        font-family: monospace;
+      }
+      .log-entry {
+        padding: 4px 6px;
+        border-radius: 4px;
+        margin-bottom: 3px;
+        line-height: 1.4;
+        word-break: break-all;
+      }
+      .log-entry.in {
+        color: #5dade2;
+      }
+      .log-entry.out {
+        color: #58d68d;
+      }
+      .log-entry.err {
+        color: #e74c3c;
+        background: #1a0a0a;
+      }
+      .log-entry.inf {
+        color: #888;
+      }
+      .log-time {
+        color: #444;
+        margin-right: 4px;
+      }
+
+      .empty-state {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #444;
+        font-size: 14px;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .empty-state span {
+        font-size: 32px;
+      }
+
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>⚡ Chat Tester</h1>
+      <div class="conn-row">
+        <input
+          id="serverUrl"
+          value="http://localhost:3000"
+          style="width: 200px"
+          placeholder="Server URL"
+        />
+        <input
+          id="tokenInput"
+          style="width: 320px"
+          placeholder="Paste JWT token here…"
+        />
+        <button class="btn-primary" id="connectBtn" onclick="connectSocket()">
+          Connect
+        </button>
+        <button
+          class="btn-danger"
+          id="disconnectBtn"
+          onclick="disconnectSocket()"
+          disabled
+        >
+          Disconnect
+        </button>
+        <span id="connStatus">
+          <span class="status-dot" id="dot"></span>
+          <span id="connLabel">Disconnected</span>
+        </span>
+      </div>
+    </header>
+
+    <div class="main">
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <h3>REST Actions</h3>
+          <input id="dmUserId" placeholder="Target user ID for DM" />
+          <div class="rest-btns">
+            <button class="btn-secondary btn-sm" onclick="restStartDM()">
+              POST /chat/dm
+            </button>
+            <button
+              class="btn-secondary btn-sm"
+              onclick="restListConversations()"
+            >
+              GET /chat/conversations
+            </button>
+            <button class="btn-secondary btn-sm" onclick="restCheckPresence()">
+              GET /chat/presence
+            </button>
+          </div>
+        </div>
+        <div
+          class="sidebar-section"
+          style="
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-bottom: none;
+          "
+        >
+          <h3>Conversations</h3>
+          <div class="user-list" id="convList">
+            <div style="color: #555; font-size: 12px; padding: 4px">
+              Connect + load conversations
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-area">
+        <div class="chat-header">
+          <span class="chat-title" id="chatTitle">Select a conversation</span>
+          <span class="typing-indicator" id="typingIndicator"></span>
+        </div>
+        <div class="messages" id="messages">
+          <div class="empty-state">
+            <span>💬</span>Connect and pick a conversation
+          </div>
+        </div>
+        <div class="input-area">
+          <textarea
+            id="msgInput"
+            placeholder="Type a message… (Enter to send, Shift+Enter for newline)"
+            onkeydown="handleKey(event)"
+            oninput="handleTypingInput()"
+            disabled
+          ></textarea>
+          <button
+            class="btn-primary"
+            id="sendBtn"
+            onclick="sendMessage()"
+            disabled
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
+      <div class="log-panel">
+        <div class="log-header">
+          Event Log
+          <button class="btn-secondary btn-sm" onclick="clearLog()">
+            Clear
+          </button>
+        </div>
+        <div class="log-entries" id="logEntries"></div>
+      </div>
+    </div>
+
+    <script>
+      let socket = null;
+      let currentConvoId = null;
+      let currentToken = null;
+      let serverUrl = "http://localhost:3000";
+      let myUserId = null;
+      let typingTimer = null;
+      let isTyping = false;
+
+      // tempId → DOM element id mapping (fixes the broken replacement logic)
+      const tempMap = {};
+      // messageId → status string
+      const msgStatusMap = {};
+      // conversationId → message array
+      const convMessages = {};
+
+      // ─── Log ──────────────────────────────────────────────────────────────────
+
+      function log(type, event, data) {
+        const el = document.getElementById("logEntries");
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        const time = new Date().toLocaleTimeString("en", { hour12: false });
+        const dataStr = data
+          ? typeof data === "object"
+            ? JSON.stringify(data)
+            : data
+          : "";
+        const truncated =
+          dataStr.length > 120 ? dataStr.slice(0, 120) + "…" : dataStr;
+        entry.innerHTML = `<span class="log-time">${time}</span><b>${event}</b> ${truncated}`;
+        el.appendChild(entry);
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function clearLog() {
+        document.getElementById("logEntries").innerHTML = "";
+      }
+
+      // ─── Socket ────────────────────────────────────────────────────────────────
+
+      function connectSocket() {
+        const token = document.getElementById("tokenInput").value.trim();
+        serverUrl = document.getElementById("serverUrl").value.trim();
+        if (!token) return alert("Paste a JWT token first");
+
+        currentToken = token;
+
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          myUserId = payload.userId;
+          log("inf", "token decoded", { userId: myUserId });
+        } catch {
+          myUserId = "unknown";
+        }
+
+        if (socket) socket.disconnect();
+
+        socket = io(serverUrl, { auth: { token }, transports: ["websocket"] });
+
+        socket.on("connect", () => {
+          setConnected(true);
+          log("inf", "connected", { socketId: socket.id });
+          restListConversations();
+        });
+
+        socket.on("disconnect", (reason) => {
+          setConnected(false);
+          log("err", "disconnected", { reason });
+        });
+
+        socket.on("connect_error", (err) => {
+          log("err", "connect_error", { message: err.message });
+        });
+
+        // ── Incoming message from another user
+        socket.on("message:new", (d) => {
+          log("in", "message:new", d);
+          const msg = d.message;
+          addMessageToView(msg.conversationId, msg);
+          // Auto-read if conversation is open
+          if (msg.conversationId === currentConvoId) {
+            socket.emit("message:read", {
+              conversationId: msg.conversationId,
+              messageId: msg.id,
+            });
+            log("out", "message:read", { messageId: msg.id });
+          }
+        });
+
+        // ── Server confirms our sent message, gives us the real DB id
+        socket.on("message:ack", (d) => {
+          log("in", "message:ack", { tempId: d.tempId, realId: d.message.id });
+          resolveTemp(d.tempId, d.message);
+        });
+
+        socket.on("message:delivered", (d) => {
+          log("in", "message:delivered", d);
+          updateMsgStatus(d.messageId, "✓✓");
+        });
+
+        socket.on("message:read", (d) => {
+          log("in", "message:read", d);
+          updateMsgStatus(d.messageId, "✓✓ read");
+        });
+
+        socket.on("typing:update", (d) => {
+          log("in", "typing:update", d);
+          if (d.conversationId !== currentConvoId) return;
+          const el = document.getElementById("typingIndicator");
+          if (d.isTyping) {
+            el.textContent = `${d.userId.slice(0, 10)} is typing…`;
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => (el.textContent = ""), 5000);
+          } else {
+            el.textContent = "";
+          }
+        });
+
+        socket.on("presence:update", (d) => {
+          log("in", "presence:update", d);
+          document
+            .querySelectorAll(`[data-presence="${d.userId}"]`)
+            .forEach((el) => {
+              el.className = "status-dot" + (d.isOnline ? " online" : "");
+            });
+        });
+
+        socket.on("error", (d) => log("err", "server error", d));
+      }
+
+      function disconnectSocket() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
+        setConnected(false);
+      }
+
+      function setConnected(yes) {
+        document.getElementById("dot").className =
+          "status-dot" + (yes ? " online" : "");
+        document.getElementById("connLabel").textContent = yes
+          ? "Connected"
+          : "Disconnected";
+        document.getElementById("connectBtn").disabled = yes;
+        document.getElementById("disconnectBtn").disabled = !yes;
+        document.getElementById("msgInput").disabled = !yes;
+        document.getElementById("sendBtn").disabled = !yes;
+      }
+
+      // ─── REST ──────────────────────────────────────────────────────────────────
+
+      async function apiFetch(path, options = {}) {
+        const res = await fetch(serverUrl + path, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentToken}`,
+          },
+          ...options,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        return data;
+      }
+
+      async function restStartDM() {
+        const targetUserId = document.getElementById("dmUserId").value.trim();
+        if (!targetUserId) return alert("Enter a target user ID");
+        try {
+          const data = await apiFetch("/api/chat/dm", {
+            method: "POST",
+            body: JSON.stringify({ targetUserId }),
+          });
+          log("inf", "POST /chat/dm", { id: data.conversation.id });
+          await restListConversations();
+          openConversation(data.conversation.id, data.conversation);
+        } catch (e) {
+          log("err", "POST /chat/dm", { error: e.message });
+        }
+      }
+
+      async function restListConversations() {
+        if (!currentToken) return;
+        try {
+          const data = await apiFetch("/api/chat/conversations");
+          log("inf", "GET /chat/conversations", {
+            count: data.conversations.length,
+          });
+          renderConvList(data.conversations);
+        } catch (e) {
+          log("err", "GET /chat/conversations", { error: e.message });
+        }
+      }
+
+      async function restCheckPresence() {
+        const uid =
+          document.getElementById("dmUserId").value.trim() || myUserId;
+        try {
+          const data = await apiFetch(`/api/chat/presence?userIds=${uid}`);
+          log("inf", "GET /chat/presence", data.status);
+        } catch (e) {
+          log("err", "GET /chat/presence", { error: e.message });
+        }
+      }
+
+      async function loadMessages(convoId) {
+        try {
+          const data = await apiFetch(
+            `/api/chat/conversations/${convoId}/messages?limit=30`,
+          );
+          convMessages[convoId] = data.messages;
+          renderMessages(convoId);
+          log("inf", `loaded ${data.messages.length} messages`);
+        } catch (e) {
+          log("err", "GET /messages", { error: e.message });
+        }
+      }
+
+      // ─── Conversation list ─────────────────────────────────────────────────────
+
+      function renderConvList(conversations) {
+        const el = document.getElementById("convList");
+        el.innerHTML = "";
+        if (!conversations.length) {
+          el.innerHTML =
+            '<div style="color:#555;font-size:12px;padding:4px">No conversations yet</div>';
+          return;
+        }
+        for (const c of conversations) {
+          const others = c.participants.filter((p) => p.userId !== myUserId);
+          const name = c.isGroup
+            ? c.name || "Group"
+            : others[0]?.user?.username || c.id.slice(0, 8);
+          const lastMsg = c.lastMessage?.content || "No messages yet";
+          const isOnline = others[0]?.user?.isOnline || false;
+
+          const item = document.createElement("div");
+          item.className =
+            "user-item" + (c.id === currentConvoId ? " active" : "");
+          item.dataset.convId = c.id;
+          item.innerHTML = `
+        <div class="user-avatar">${name.slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name">
+            <span class="status-dot ${isOnline ? "online" : ""}" data-presence="${others[0]?.userId || ""}"></span>
+            ${escHtml(name)}
+          </div>
+          <div class="user-last">${escHtml(lastMsg)}</div>
+        </div>`;
+          item.onclick = () => openConversation(c.id, c);
+          el.appendChild(item);
+        }
+      }
+
+      async function openConversation(convoId, convo) {
+        currentConvoId = convoId;
+        document.querySelectorAll(".user-item").forEach((el) => {
+          el.classList.toggle("active", el.dataset.convId === convoId);
+        });
+        const others = (convo.participants || []).filter(
+          (p) => p.userId !== myUserId,
+        );
+        const name = convo.isGroup
+          ? convo.name || "Group"
+          : others[0]?.user?.username || convoId.slice(0, 8);
+        document.getElementById("chatTitle").textContent = name;
+        document.getElementById("typingIndicator").textContent = "";
+        await loadMessages(convoId);
+        document.getElementById("msgInput").focus();
+      }
+
+      // ─── Messages ──────────────────────────────────────────────────────────────
+
+      function renderMessages(convoId) {
+        const msgs = convMessages[convoId] || [];
+        const el = document.getElementById("messages");
+        el.innerHTML = "";
+        if (!msgs.length) {
+          el.innerHTML =
+            '<div class="empty-state"><span>🕊️</span>No messages yet. Say hi!</div>';
+          return;
+        }
+        for (const msg of msgs) el.appendChild(buildMsgEl(msg));
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function buildMsgEl(msg) {
+        const mine = msg.senderId === myUserId || msg.sender?.id === myUserId;
+        const div = document.createElement("div");
+        div.className = `msg ${mine ? "mine" : "theirs"}`;
+        div.id = `msg-${msg.id}`;
+
+        const status = msgStatusMap[msg.id] || "✓";
+        div.innerHTML = `
+      ${!mine ? `<div class="msg-sender">${escHtml(msg.sender?.username || msg.senderId.slice(0, 8))}</div>` : ""}
+      <div class="msg-bubble">${escHtml(msg.content)}</div>
+      <div class="msg-meta">
+        <span>${formatTime(msg.createdAt)}</span>
+        ${mine ? `<span class="msg-status" id="status-${msg.id}">${status}</span>` : ""}
+      </div>`;
+        return div;
+      }
+
+      // Add a message to the view — used for incoming AND optimistic sends
+      function addMessageToView(convoId, msg) {
+        if (!convMessages[convoId]) convMessages[convoId] = [];
+        convMessages[convoId].push(msg);
+        if (convoId !== currentConvoId) return;
+
+        const container = document.getElementById("messages");
+        const empty = container.querySelector(".empty-state");
+        if (empty) empty.remove();
+        container.appendChild(buildMsgEl(msg));
+        container.scrollTop = container.scrollHeight;
+      }
+
+      // Called when message:ack arrives — swap temp element for real one
+      function resolveTemp(tempId, realMsg) {
+        const tempElId = tempMap[tempId];
+        if (tempElId) {
+          const el = document.getElementById(tempElId);
+          if (el) {
+            // Rename element and inner status span to use real message id
+            el.id = `msg-${realMsg.id}`;
+            const statusEl = el.querySelector(".msg-status");
+            if (statusEl) statusEl.id = `status-${realMsg.id}`;
+          }
+          delete tempMap[tempId];
+        }
+        // Update the message array too
+        const msgs = convMessages[realMsg.conversationId];
+        if (msgs) {
+          const idx = msgs.findIndex((m) => m.id === `temp-${tempId}`);
+          if (idx !== -1) msgs[idx] = realMsg;
+        }
+      }
+
+      function updateMsgStatus(messageId, statusText) {
+        msgStatusMap[messageId] = statusText;
+        const el = document.getElementById(`status-${messageId}`);
+        if (el) el.textContent = statusText;
+      }
+
+      // ─── Send ──────────────────────────────────────────────────────────────────
+
+      function sendMessage() {
+        const input = document.getElementById("msgInput");
+        const content = input.value.trim();
+        if (!content || !currentConvoId || !socket) return;
+
+        const tempId = Date.now().toString();
+
+        // Build optimistic message object
+        const tempMsg = {
+          id: `temp-${tempId}`,
+          conversationId: currentConvoId,
+          senderId: myUserId,
+          sender: { id: myUserId, username: "You" },
+          content,
+          createdAt: new Date().toISOString(),
+        };
+
+        // Render it immediately
+        addMessageToView(currentConvoId, tempMsg);
+
+        // ✅ Fix: store the DOM id AFTER the element has been appended
+        tempMap[tempId] = `msg-temp-${tempId}`;
+        const justAdded = document.getElementById(`msg-${tempMsg.id}`);
+        if (justAdded) {
+          justAdded.id = `msg-temp-${tempId}`;
+          const statusEl = justAdded.querySelector(".msg-status");
+          if (statusEl) statusEl.id = `status-temp-${tempId}`;
+          tempMap[tempId] = `msg-temp-${tempId}`;
+        }
+
+        socket.emit("message:send", {
+          conversationId: currentConvoId,
+          content,
+          tempId,
+        });
+        log("out", "message:send", {
+          conversationId: currentConvoId,
+          content,
+          tempId,
+        });
+
+        stopTyping();
+        input.value = "";
+        input.style.height = "auto";
+      }
+
+      function handleKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }
+
+      // ─── Typing ────────────────────────────────────────────────────────────────
+
+      function handleTypingInput() {
+        if (!socket || !currentConvoId) return;
+        const input = document.getElementById("msgInput");
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 100) + "px";
+
+        if (!isTyping) {
+          isTyping = true;
+          socket.emit("typing:start", { conversationId: currentConvoId });
+          log("out", "typing:start", { conversationId: currentConvoId });
+        }
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(stopTyping, 2000);
+      }
+
+      function stopTyping() {
+        if (isTyping && socket && currentConvoId) {
+          isTyping = false;
+          socket.emit("typing:stop", { conversationId: currentConvoId });
+          log("out", "typing:stop", { conversationId: currentConvoId });
+        }
+        clearTimeout(typingTimer);
+      }
+
+      // ─── Utils ─────────────────────────────────────────────────────────────────
+
+      function escHtml(str = "") {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function formatTime(iso) {
+        if (!iso) return "";
+        return new Date(iso).toLocaleTimeString("en", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      }
+    </script>
+  </body>
+</html>

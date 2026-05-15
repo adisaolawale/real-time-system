@@ -123,7 +123,7 @@ npx prisma generate
 ### 5. Seed test users and get tokens
 
 ```bash
-npx ts-node src/seed.ts
+npm run seed
 ```
 
 This creates three test users (Alice, Bob, Charlie), two conversations, and prints JWT tokens for each user. Copy these tokens — you'll need them for testing.
