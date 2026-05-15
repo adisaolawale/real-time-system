@@ -1,0 +1,15 @@
+{"level":"info","message":"\n🚀 Server running on http://localhost:5000","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"\n📬 REST:","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   POST   /api/chat/dm","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   POST   /api/chat/groups","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   GET    /api/chat/conversations","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   GET    /api/chat/conversations/:id","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   GET    /api/chat/conversations/:id/messages","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   DELETE /api/chat/conversations/:id/messages/:messageId","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   GET    /api/chat/presence?userIds=id1,id2","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"\n📡 Socket events (emit from client):","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   message:send  { conversationId, content, tempId }","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   message:read  { conversationId, messageId }","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   typing:start  { conversationId }","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   typing:stop   { conversationId }","timestamp":"2026-05-08 23:58:46"}
+{"level":"info","message":"   heartbeat","timestamp":"2026-05-08 23:58:46"}
